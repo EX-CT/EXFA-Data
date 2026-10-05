@@ -1,0 +1,112 @@
+name: sde-dataset
+# Auto-discovers new CCP SDE builds (TQ latest.jsonl) every 6 h, converts them into a versioned engine dataset,
+# validates + tests it, diffs it against the previous release and publishes everything as GitHub Release
+# `sde-<build>-r<revision>` (marked Latest). This repo also publishes `prices-jita44-*` releases
+# (prices-snapshot.yml, never Latest) — the previous-release lookup therefore filters by the `sde-` prefix.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "SDE build number (default: latest)"
+        required: false
+        default: "latest"
+      force:
+        description: "Rebuild even if the release exists (replaces assets of that tag)"
+        type: boolean
+        required: false
+        default: false
+  push:
+    branches: [main]
+    paths: ["sde/**", "presets/**", "aliases/**", ".github/workflows/sde.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: sde-dataset
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: sde
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Resolve build and release tag
+        id: b
+        run: |
+          IN="${{ github.event.inputs.build }}"
+          if [ -z "$IN" ] || [ "$IN" = "latest" ]; then B=$(python -m sdepipe latest); else B="$IN"; fi
+          read TAG FILE <<< "$(python -m sdepipe names "$B")"
+          echo "build=$B" >> "$GITHUB_OUTPUT"; echo "tag=$TAG" >> "$GITHUB_OUTPUT"; echo "file=$FILE" >> "$GITHUB_OUTPUT"
+          echo "SDE build $B -> release $TAG ($FILE)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Skip if already released
+        id: chk
+        run: |
+          if gh release view "${{ steps.b.outputs.tag }}" >/dev/null 2>&1 && [ "${{ github.event.inputs.force }}" != "true" ]; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"; echo "Release ${{ steps.b.outputs.tag }} exists - nothing to do." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Download SDE
+        if: steps.chk.outputs.skip != '1'
+        run: python -m sdepipe download --build ${{ steps.b.outputs.build }} --dest _sde
+      - name: Build + validate dataset
+        if: steps.chk.outputs.skip != '1'
+        run: python -m sdepipe build --sde _sde --out dist
+      - name: Presets (presets.json from this SDE build; aliases from aliases/aliases.json)
+        if: steps.chk.outputs.skip != '1'
+        run: python presets/make_presets.py --sde _sde --out dist/presets
+      - name: Unit tests
+        if: steps.chk.outputs.skip != '1'
+        env: { SDEPIPE_DIST: dist, SDEPIPE_PRESETS: dist/presets }
+        run: |
+          python -m unittest discover -s sde/tests -v
+          python -m unittest discover -s presets/tests -v
+      - name: Diff against previous release
+        if: steps.chk.outputs.skip != '1'
+        run: |
+          B=${{ steps.b.outputs.build }}; TAG=${{ steps.b.outputs.tag }}
+          curl -sfL "https://developers.eveonline.com/static-data/tranquility/changes/$B.jsonl" -o ccp-changes.jsonl || rm -f ccp-changes.jsonl
+          PREV=$(gh release list --limit 50 --json tagName,createdAt --jq '[.[] | select(.tagName|startswith("sde-")) | select(.tagName != "'"$TAG"'")] | sort_by(.createdAt) | last | .tagName // empty')
+          EXTRA=""; [ -f ccp-changes.jsonl ] && EXTRA="--ccp-changes ccp-changes.jsonl"
+          if [ -n "$PREV" ]; then
+            mkdir -p prev && gh release download "$PREV" -D prev -p 'dataset-*.json.gz'
+            python -m sdepipe diff prev/dataset-*.json.gz dist/${{ steps.b.outputs.file }} --md dist/CHANGELOG-$B.md --json dist/diff-$B.json $EXTRA
+          else
+            echo "# SDE build $B (first release, no previous dataset)" > dist/CHANGELOG-$B.md
+          fi
+          echo "Previous release: ${PREV:-none}" >> "$GITHUB_STEP_SUMMARY"
+          head -c 60000 dist/CHANGELOG-$B.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish release
+        if: steps.chk.outputs.skip != '1'
+        run: |
+          B=${{ steps.b.outputs.build }}; TAG=${{ steps.b.outputs.tag }}; F=${{ steps.b.outputs.file }}
+          cp dist/manifest.json "dist/manifest-$B.json"; cp LICENSE.EVE dist/
+          ASSETS="dist/$F dist/manifest.json dist/manifest-$B.json dist/CHANGELOG-$B.md dist/LICENSE.EVE dist/presets/presets.json"
+          for f in dist/diff-$B.json; do [ -f "$f" ] && ASSETS="$ASSETS $f"; done
+          { echo "Engine dataset for CCP SDE build $B ($F, format v1, revision $(python -c 'import sdepipe;print(sdepipe.DATASET_REVISION)'))."
+            echo "Built by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. EVE data © CCP hf., see LICENSE.EVE."
+            echo; head -c 100000 dist/CHANGELOG-$B.md; } > notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" $ASSETS --clobber && gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" $ASSETS --title "SDE build $B (r$(python -c 'import sdepipe;print(sdepipe.DATASET_REVISION)'))" --notes-file notes.md --latest
+          fi
+          echo "Published ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+      - name: Notify EXFA-Engine (repository_dispatch sde-release)
+        if: steps.chk.outputs.skip != '1'
+        env:
+          DISPATCH_TOKEN: ${{ secrets.EXFA_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$DISPATCH_TOKEN" ]; then
+            echo "::notice::EXFA_DISPATCH_TOKEN not set - EXFA-Engine sde-release dispatch skipped"
+            exit 0
+          fi
+          REV=$(python -c 'import sdepipe;print(sdepipe.DATASET_REVISION)')
+          curl -sf -X POST -H "Authorization: Bearer $DISPATCH_TOKEN" -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/EX-CT/EXFA-Engine/dispatches \
+            -d "{\"event_type\":\"sde-release\",\"client_payload\":{\"tag\":\"${{ steps.b.outputs.tag }}\",\"sde_build\":${{ steps.b.outputs.build }},\"revision\":$REV}}"
+          echo "Dispatched sde-release to EX-CT/EXFA-Engine" >> "$GITHUB_STEP_SUMMARY"

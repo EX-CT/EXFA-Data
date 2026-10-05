@@ -1,0 +1,104 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+env:
+  GH_TOKEN: ${{ github.token }}
+  # pinned dataset used by the unit tests until this repo's own sde-* releases exist; bump with the next SDE build
+  LEGACY_SDE_TAG: sde-3569502-r5
+jobs:
+  sde:
+    # sdepipe unit tests + presets structure tests, against the released dataset/presets as fixtures
+    # (the tests skip cleanly when SDEPIPE_DIST / SDEPIPE_PRESETS have no files; here they always do).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Fixture dataset + presets from the published release
+        run: |
+          gh release download "$LEGACY_SDE_TAG" -R EX-CT/eve-sde-pipeline -p 'dataset-*.json.gz' -D dist
+          gh release download "$LEGACY_SDE_TAG" -R EX-CT/eve-sde-pipeline -p 'presets.json' -D dist-presets
+      - name: sdepipe unit tests
+        env: { SDEPIPE_DIST: dist, PYTHONPATH: sde }
+        run: python -m unittest discover -s sde/tests -v
+      - name: presets tests
+        env: { SDEPIPE_PRESETS: dist-presets }
+        run: python -m unittest discover -s presets/tests -v
+      - name: aliases.json sanity (loadable, non-empty groups, unique aliases)
+        run: python3 -c "import json;a=json.load(open('aliases/aliases.json'));al={};[al.update(g['aliases']) for g in a['groups']];assert len(al)>100 and len(al)==len(set(al))"
+
+  prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node: ["20", "22"]
+    defaults:
+      run:
+        working-directory: prices
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "${{ matrix.node }}"
+          cache: npm
+          cache-dependency-path: prices/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: CLI round trip (mocked data only; validate the committed example)
+        run: node dist/src/cli.js validate examples/prices-jita44-sample.json
+
+  price-rule-bench:
+    # EXFA-Bench d22/price_rule suite: PRICE_RULE_CMD = `exfa-prices rule` (pinned bench commit).
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BENCH_REPO: EX-CT/EXFA-Bench
+      BENCH_SHA: a467d0a606b37a0f861b6d10da04669d2f42dd29
+    defaults:
+      run:
+        working-directory: prices
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: prices/package-lock.json
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: npm ci && npm run build
+      - name: d22/price_rule (every case must pass)
+        run: |
+          git clone -q "https://github.com/$BENCH_REPO" "$RUNNER_TEMP/bench"
+          git -C "$RUNNER_TEMP/bench" checkout -q "$BENCH_SHA"
+          set -o pipefail
+          python3 "$RUNNER_TEMP/bench/d22/run_d22.py" --suite price_rule --rule-cmd "node $PWD/dist/src/cli.js rule" --out price_rule.json | tee rule.log
+          grep -qE 'price_rule ([0-9]+)/\1 pass' rule.log
+          grep -E 'price_rule' rule.log >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: price-rule-results, path: prices/price_rule.json, if-no-files-found: ignore }
+
+  live-smoke:
+    # network: ESI + Fuzzwork, a handful of types. Informational, never gates a merge.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: prices
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: prices/package-lock.json
+      - run: npm ci && npm run build
+      - run: npm run smoke

@@ -1,0 +1,10 @@
+_sde/
+dist/
+out/
+work/
+__pycache__/
+*.pyc
+node_modules/
+prices/dist/
+prices/data/
+prices/out/

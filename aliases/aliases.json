@@ -1,0 +1,160 @@
+{
+ "format": "exfa-search-aliases",
+ "format_version": 1,
+ "license": {
+  "id": "LGPL-3.0-or-later",
+  "text": "EX-CT hand-written abbreviation table (EVE community shorthand -> expansion), LGPL-3.0-or-later; see LICENSE in the repository root"
+ },
+ "provenance": "EX-CT/eve-sde-pipeline tools/make_presets.py ALIASES @ 83ba879, group comments kept as group names",
+ "groups": [
+  {
+   "group": "propulsion / navigation",
+   "aliases": {
+    "ab": "afterburner",
+    "mwd": "microwarpdrive",
+    "mjd": "micro jump drive",
+    "mjfg": "micro jump field generator",
+    "nano": "nanofiber internal structure",
+    "ods": "overdrive injector system",
+    "istab": "inertial stabilizer",
+    "hyperspatial": "hyperspatial velocity optimizer",
+    "cloak": "cloaking device"
+   }
+  },
+  {
+   "group": "tackle / ewar",
+   "aliases": {
+    "scram": "warp scrambler",
+    "point": "warp disruptor",
+    "disruptor": "warp disruptor",
+    "web": "stasis webifier",
+    "webs": "stasis webifier",
+    "neut": "energy neutralizer",
+    "nos": "nosferatu",
+    "tp": "target painter",
+    "painter": "target painter",
+    "damp": "remote sensor dampener",
+    "rsd": "remote sensor dampener",
+    "td": "tracking disruptor",
+    "gd": "guidance disruptor",
+    "ecm": "ecm",
+    "bubble": "warp disruption field generator",
+    "wdfg": "warp disruption field generator",
+    "hic": "heavy interdiction cruiser",
+    "eccm": "eccm",
+    "sebo": "sensor booster",
+    "rsb": "remote sensor booster",
+    "sb": "smartbomb"
+   }
+  },
+  {
+   "group": "tank",
+   "aliases": {
+    "dc": "damage control",
+    "dcu": "damage control",
+    "lse": "large shield extender",
+    "mse": "medium shield extender",
+    "sse": "small shield extender",
+    "asb": "ancillary shield booster",
+    "xlasb": "x-large ancillary shield booster",
+    "lasb": "large ancillary shield booster",
+    "masb": "medium ancillary shield booster",
+    "aar": "ancillary armor repairer",
+    "eanm": "energized adaptive nano membrane",
+    "anp": "adaptive nano plating",
+    "rah": "reactive armor hardener",
+    "ar": "armor repairer",
+    "sba": "shield boost amplifier",
+    "invuln": "multispectrum shield hardener",
+    "invu": "multispectrum shield hardener",
+    "plate": "armor plate",
+    "trimark": "trimark armor pump",
+    "cdfe": "core defense field extender",
+    "scr": "shield power relay",
+    "pdu": "power diagnostic system",
+    "rcu": "reactor control unit",
+    "cpr": "capacitor power relay",
+    "ccc": "capacitor control circuit",
+    "cb": "cap booster",
+    "cap": "capacitor",
+    "rar": "remote armor repairer",
+    "rsr": "remote shield booster",
+    "rep": "repairer"
+   }
+  },
+  {
+   "group": "damage",
+   "aliases": {
+    "bcs": "ballistic control system",
+    "mfs": "magnetic field stabilizer",
+    "hs": "heat sink",
+    "gyro": "gyrostabilizer",
+    "dda": "drone damage amplifier",
+    "te": "tracking enhancer",
+    "tc": "tracking computer",
+    "mgc": "missile guidance computer",
+    "mge": "missile guidance enhancer",
+    "ecu": "entropic radiation sink",
+    "vorton": "vorton projector",
+    "hml": "heavy missile launcher",
+    "haml": "heavy assault missile launcher",
+    "rlml": "rapid light missile launcher",
+    "rhml": "rapid heavy missile launcher",
+    "lml": "light missile launcher",
+    "cml": "cruise missile launcher",
+    "torp": "torpedo launcher",
+    "rl": "rocket launcher",
+    "xl": "x-large",
+    "ac": "autocannon",
+    "arty": "artillery",
+    "rail": "railgun",
+    "blaster": "blaster",
+    "pulse": "pulse laser",
+    "beam": "beam laser",
+    "ion": "ion blaster",
+    "neutron": "neutron blaster",
+    "mega": "mega",
+    "dis": "disintegrator",
+    "ddd": "doomsday"
+   }
+  },
+  {
+   "group": "drones",
+   "aliases": {
+    "hobgob": "hobgoblin",
+    "ogre": "ogre",
+    "ec": "ec-",
+    "wasp": "wasp",
+    "hammer": "hammerhead"
+   }
+  },
+  {
+   "group": "rigs and misc",
+   "aliases": {
+    "ancil": "ancillary",
+    "mtu": "mobile tractor unit",
+    "mju": "micro jump unit",
+    "nrp": "nanite repair paste",
+    "lo": "liquid ozone"
+   }
+  },
+  {
+   "group": "meta / faction",
+   "aliases": {
+    "t1": " i",
+    "t2": " ii",
+    "rf": "republic fleet",
+    "cn": "caldari navy",
+    "fn": "federation navy",
+    "in": "imperial navy",
+    "dg": "dread guristas",
+    "ds": "domination",
+    "tss": "true sansha",
+    "sh": "shadow serpentis",
+    "db": "dark blood",
+    "cs": "caldari state",
+    "ore": "ore"
+   }
+  }
+ ]
+}
