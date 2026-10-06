@@ -35,7 +35,11 @@ class TestDataset(unittest.TestCase):
 
     def test_revision_and_sections(self):
         from sdepipe import DATASET_REVISION
-        self.assertEqual(self.ds["dataset_revision"], DATASET_REVISION)
+        if not os.environ.get("SDEPIPE_FIXTURE"):
+            # dist/ here is a fresh build (sde.yml): the dataset's revision must match the pipeline's.
+            # In ci.yml dist/ is a previously *released* fixture, which lags DATASET_REVISION between a
+            # bump and the next release — revision equality is only meaningful on fresh builds.
+            self.assertEqual(self.ds["dataset_revision"], DATASET_REVISION)
         for sec in ("market_groups", "meta_groups", "units", "traits", "required_skills", "clone_grades",
                     "environment", "names_i18n", "mutaplasmids"):
             self.assertIn(sec, self.ds)

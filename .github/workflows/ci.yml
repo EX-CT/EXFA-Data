@@ -22,7 +22,7 @@ jobs:
           gh release download "$TAG" -R EX-CT/EXFA-Data -p 'dataset-*.json.gz' -D dist
           gh release download "$TAG" -R EX-CT/EXFA-Data -p 'presets.json' -D dist-presets
       - name: sdepipe unit tests
-        env: { SDEPIPE_DIST: dist, PYTHONPATH: sde }
+        env: { SDEPIPE_DIST: dist, SDEPIPE_FIXTURE: 1, PYTHONPATH: sde }
         run: python -m unittest discover -s sde/tests -v
       - name: presets tests
         env: { SDEPIPE_PRESETS: dist-presets }
