@@ -99,6 +99,7 @@ def build(sde_dir: str) -> Dict[str, Any]:
 
     types = {}
     names_zh = {}
+    descriptions = {}
     for t in read_jsonl(p("types")):
         tid = t["_key"]
         g = groups.get(t["groupID"])
@@ -134,6 +135,10 @@ def build(sde_dir: str) -> Dict[str, Any]:
         zh = _name(t, "zh")
         if zh and zh != entry["name"]:
             names_zh[str(tid)] = zh
+        d = t.get("description")
+        den = d.get("en") if isinstance(d, dict) else d
+        if den:
+            descriptions[str(tid)] = den
 
     attributes = {}
     for a in read_jsonl(p("dogmaAttributes")):
@@ -214,6 +219,7 @@ def build(sde_dir: str) -> Dict[str, Any]:
         "mutaplasmids": muta,
         "fighter_abilities": fighter_abilities,
         "names": {"zh": names_zh},
+        "descriptions": descriptions,
         "patches": [],
     }
     # keep groups referenced by kept types (e.g. mutaplasmid commodity groups)
@@ -272,7 +278,7 @@ def dump(ds: Dict[str, Any], out_dir: str) -> Dict[str, Any]:
         "bytes_json": len(raw),
         "bytes_gz": os.path.getsize(path),
         "counts": {k: len(ds[k]) for k in ("types", "groups", "attributes", "effects", "dbuffs", "mutaplasmids", "market_groups",
-                                            "traits", "required_skills") if k in ds},
+                                            "traits", "required_skills", "descriptions") if k in ds},
         "patches": ds["patches"],
         "generator": ds["generator"],
     }
