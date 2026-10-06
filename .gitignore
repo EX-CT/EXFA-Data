@@ -8,3 +8,5 @@ node_modules/
 prices/dist/
 prices/data/
 prices/out/
+prices/*.zip
+prices/notes.md
