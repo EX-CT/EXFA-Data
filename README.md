@@ -1,5 +1,7 @@
 # EXFA-Data — EXFA · 精密装配助理 数据管线
 
+[![CI](https://github.com/EX-CT/EXFA-Data/actions/workflows/ci.yml/badge.svg)](https://github.com/EX-CT/EXFA-Data/actions/workflows/ci.yml) [![release](https://img.shields.io/github/v/release/EX-CT/EXFA-Data)](https://github.com/EX-CT/EXFA-Data/releases)
+
 Produces every data file the EXFA products consume: the **engine dataset** (CCP SDE → compact
 `exct-eve-dataset` v1, read by [EX-CT/EXFA-Engine](https://github.com/EX-CT/EXFA-Engine)),
 **fitting presets**, **search aliases** and **Jita price snapshots**.
