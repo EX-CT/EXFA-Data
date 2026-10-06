@@ -6,8 +6,6 @@ permissions:
   contents: read
 env:
   GH_TOKEN: ${{ github.token }}
-  # pinned dataset used by the unit tests until this repo's own sde-* releases exist; bump with the next SDE build
-  LEGACY_SDE_TAG: sde-3569502-r5
 jobs:
   sde:
     # sdepipe unit tests + presets structure tests, against the released dataset/presets as fixtures
@@ -18,10 +16,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - name: Fixture dataset + presets from the published release
+      - name: Fixture dataset + presets from the latest published sde-* release of this repo
         run: |
-          gh release download "$LEGACY_SDE_TAG" -R EX-CT/eve-sde-pipeline -p 'dataset-*.json.gz' -D dist
-          gh release download "$LEGACY_SDE_TAG" -R EX-CT/eve-sde-pipeline -p 'presets.json' -D dist-presets
+          TAG=$(gh release list -R EX-CT/EXFA-Data --limit 30 --json tagName,isLatest --jq '[.[] | select(.tagName|startswith("sde-")) | select(.isLatest)] | .[0].tagName')
+          gh release download "$TAG" -R EX-CT/EXFA-Data -p 'dataset-*.json.gz' -D dist
+          gh release download "$TAG" -R EX-CT/EXFA-Data -p 'presets.json' -D dist-presets
       - name: sdepipe unit tests
         env: { SDEPIPE_DIST: dist, PYTHONPATH: sde }
         run: python -m unittest discover -s sde/tests -v
