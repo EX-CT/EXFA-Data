@@ -87,11 +87,38 @@ HULL_CLASSES = [
 
 
 def load_aliases(path):
+    """alias -> {"expansion": str, "exclude": [str]}; a bare string value means {expansion, exclude: []}.
+    `exclude` words must not precede the expansion in a matching type name (Pyfa jargon lookbehind
+    semantics, e.g. "dc" -> "damage control" but not "assault damage control")."""
     a = json.load(open(path, encoding="utf-8"))
     out = {}
     for g in a["groups"]:
-        out.update(g["aliases"])
+        for alias, v in g["aliases"].items():
+            if isinstance(v, str):
+                out[alias] = {"expansion": v, "exclude": []}
+            else:
+                out[alias] = {"expansion": v["expansion"], "exclude": list(v.get("exclude") or [])}
     return out
+
+
+def alias_pattern(expansion, exclude=()):
+    """Expansion -> Python-re pattern over an English type name. Canonical rule shared with sdepipe's
+    `search_aliases` section and exfa-codegen's SEARCH_ALIASES table (keep all three in sync):
+      * a bare meta suffix anchors at the name end (" ii" -> ` ii$`);
+      * each exclude word gets a lookbehind before the phrase start ("assault" -> `(?<!assault )`);
+      * a multi-word phrase allows a middle word after the first word ("large shield extender" ->
+        `large (.+ )?shield extender`, like Pyfa's hand-written pattern)."""
+    e = expansion.strip().lower()
+    if not e:
+        return e
+    if e in ("i", "ii", "iii", "iv", "v"):
+        return " " + e + "$"
+    esc = lambda s: "".join("\\" + c if c in "()[]{}.*+?|^$\\" else c for c in s)
+    words = e.split()
+    p = "".join(f"(?<!{esc(x)} )" for x in exclude) + esc(words[0])
+    if len(words) > 1:
+        p += " (.+ )?" + esc(" ".join(words[1:]))
+    return p
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -382,17 +409,15 @@ def aliases(sde, table):
     names = {}
     for tid, t in sde.types.items():
         if t.get("published") and sde.cat_of(tid) in (6, 7, 8, 18, 20, 22, 32, 65, 66, 87):
-            names[tid] = " " + sde.name(tid).lower() + " "
+            names[tid] = sde.name(tid).lower()
     out, dropped = [], []
-    for a, exp in sorted(table.items()):
-        e = exp.lower()
-        if e.strip() in ("i", "ii"):  # meta suffix aliases: match the name ending
-            ids = sorted(tid for tid, n in names.items() if n.rstrip().endswith(" " + e.strip()))
-        else:
-            rx = re.compile((r"\b" if e[0].isalnum() else "") + re.escape(e) + (r"\b" if e[-1].isalnum() else ""))
-            ids = sorted(tid for tid, n in names.items() if rx.search(n))
+    for a, spec in sorted(table.items()):
+        exp, exclude = spec["expansion"], spec.get("exclude") or []
+        rx = re.compile(alias_pattern(exp, exclude))
+        ids = sorted(tid for tid, n in names.items() if rx.search(n.strip()))
         if ids:
-            out.append({"alias": a, "expansion": exp.strip(), "type_ids": ids, "matches": len(ids)})
+            out.append({"alias": a, "expansion": exp.strip(), "exclude": exclude,
+                        "pattern": alias_pattern(exp, exclude), "type_ids": ids, "matches": len(ids)})
         else:
             dropped.append(a)
     return out, dropped

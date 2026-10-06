@@ -69,6 +69,23 @@ def _opt(d: Dict[str, Any], key: str):
     return v if v not in (0, None) else None
 
 
+def _search_aliases() -> Dict[str, str]:
+    """EX-CT hand-written abbreviation table (aliases/aliases.json at the repo root, LGPL): alias -> expansion
+    phrase. Shipped inside the dataset so every engine build gets product shorthand (search aliases) with no
+    extra plumbing. Returns {} when the table is absent (e.g. sdepipe vendored alone)."""
+    p = os.path.join(os.path.dirname(__file__), "..", "..", "aliases", "aliases.json")
+    try:
+        doc = json.load(open(p, encoding="utf-8"))
+    except OSError:
+        return {}
+    out: Dict[str, Any] = {}
+    for g in doc.get("groups", []):
+        for alias, v in g.get("aliases", {}).items():
+            out[alias] = {"expansion": v, "exclude": []} if isinstance(v, str) else \
+                {"expansion": v["expansion"], "exclude": list(v.get("exclude") or [])}
+    return out
+
+
 def build(sde_dir: str) -> Dict[str, Any]:
     p = lambda f: os.path.join(sde_dir, f + ".jsonl")
     meta = next(read_jsonl(p("_sde")))
@@ -220,6 +237,7 @@ def build(sde_dir: str) -> Dict[str, Any]:
         "fighter_abilities": fighter_abilities,
         "names": {"zh": names_zh},
         "descriptions": descriptions,
+        "search_aliases": _search_aliases(),
         "patches": [],
     }
     # keep groups referenced by kept types (e.g. mutaplasmid commodity groups)
@@ -278,7 +296,7 @@ def dump(ds: Dict[str, Any], out_dir: str) -> Dict[str, Any]:
         "bytes_json": len(raw),
         "bytes_gz": os.path.getsize(path),
         "counts": {k: len(ds[k]) for k in ("types", "groups", "attributes", "effects", "dbuffs", "mutaplasmids", "market_groups",
-                                            "traits", "required_skills", "descriptions") if k in ds},
+                                            "traits", "required_skills", "descriptions", "search_aliases") if k in ds},
         "patches": ds["patches"],
         "generator": ds["generator"],
     }
