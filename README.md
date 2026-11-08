@@ -29,9 +29,8 @@ Two kinds of GitHub Releases share this repository:
 | `prices-jita44-<time>` | `prices-snapshot.yml` (daily, dispatch) | **no** (`--latest=false`) | `prices-jita44-*.json[.gz]`, `SHA256SUMS` |
 
 Consumers resolve the newest dataset with `gh release download -R EX-CT/EXFA-Data -p 'dataset-*'`; the price
-snapshots never take the Latest slot. A successful `sde-*` release also sends a `repository_dispatch`
-(`sde-release`, payload `{tag, sde_build, revision}`) to EX-CT/EXFA-Engine when the secret `EXFA_DISPATCH_TOKEN`
-is configured — skipped silently otherwise.
+snapshots never take the Latest slot. The engine does **not** follow new releases automatically: EXFA-Engine adopts an SDE by hand with `python ci/sde_update.py`
+(gate, price snapshot, lock bump), so a new `sde-*` release here never breaks the engine's CI.
 
 ## Commands
 
